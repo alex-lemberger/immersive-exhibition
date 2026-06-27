@@ -3,11 +3,11 @@ import { createXRStore, XR } from '@react-three/xr'
 import { OrbitControls } from '@react-three/drei'
 import { ArtworkScene } from './scene/ArtworkScene'
 import { playAmbient } from './audio/useAudio'
-import pilot from './data/artworks/pilot.json'
+import reaching from './data/artworks/reaching.json'
 import type { ArtworkScene as ArtworkSceneData } from './data/schema'
 
 const store = createXRStore()
-const data = pilot as ArtworkSceneData
+const data = reaching as ArtworkSceneData
 
 export default function App() {
   const enter = () => {
