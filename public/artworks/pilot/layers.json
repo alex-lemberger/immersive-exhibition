@@ -1,0 +1,24 @@
+{
+  "canvas": [
+    1878,
+    2406
+  ],
+  "layers": [
+    {
+      "id": "background",
+      "file": "/artworks/pilot/background.webp"
+    },
+    {
+      "id": "ball2",
+      "file": "/artworks/pilot/ball2.webp"
+    },
+    {
+      "id": "ball1",
+      "file": "/artworks/pilot/ball1.webp"
+    },
+    {
+      "id": "figure1",
+      "file": "/artworks/pilot/figure1.webp"
+    }
+  ]
+}

@@ -15,3 +15,7 @@ __pycache__
 # large regenerable pipeline intermediates
 public/artworks/**/*.crop.png
 public/artworks/**/*.fg.png
+
+# large layered source files (artist keeps originals)
+public/artworks/**/*.psd
+public/artworks/**/*.psb
