@@ -38,32 +38,36 @@ Alternative devices (for a later high-end phase only):
 
 ## Software Stack
 
-One codebase runs in the browser **and** on the Quest 3 via WebXR. No second engine. This leverages existing React skills and a Cinema 4D / After Effects asset pipeline; Unity/C# is intentionally avoided.
+One codebase runs in the browser **and** on the Quest 3 via WebXR. No second engine. The asset pipeline is **fully programmatic** — local AI models and scripts replace Cinema 4D / After Effects in the critical path. Unity/C# is intentionally avoided.
 
 | Layer | Tool | Role |
 |---|---|---|
 | Web + headset runtime | **React + react-three-fiber (R3F)** | Three.js as React components. Same app runs in browser and Quest 3. |
 | VR / XR | **@react-three/xr** | Headset, controllers, hands, gaze, spatial interaction. |
-| Scene helpers | **@react-three/drei** | Loaders, parallax, depth, postprocessing. |
-| 3D asset creation | **Cinema 4D** | Depth/displacement from etching layers, animated marks and figures, rendering. |
-| 2.5D motion | **After Effects** | Parallax passes, subtle mark animation (image sequences or Lottie). |
-| Export formats | **glTF/GLB** (3D), **WebP/PNG sequences** (2.5D), **Lottie** (vector) | Web-native, loads in Three.js. |
+| Scene helpers | **@react-three/drei** | Loaders, parallax, text, postprocessing. |
+| Depth from image | **Depth Anything V2** | Mono-depth map from a flat etching → displaces a plane in Three.js. Replaces C4D modeling. |
+| Layer separation | **rembg / SAM 2** | Alpha cutouts and masks, scripted. Replaces manual Photoshop masking. |
+| Line art | **vtracer** | Raster linework → crisp scalable SVG. |
+| Motion | **Procedural GLSL** (`DepthLayer`) | Contemplative drift/displacement in shaders. Replaces After Effects keyframing. |
+| Image ops | **Pillow** | Resize/compress to WebP, scripted. |
 | Audio | **Howler.js / Web Audio** | Spatial ambient and narration. |
 | Narrative data | **JSON scene graph** first, CMS (Sanity/Strapi) later | Avoid building an editor early; JSON files first. |
 | Hosting | **Vercel / Netlify** | Static, free tier. |
 
+All asset steps live in `scripts/pipeline.py` (`depth`, `segment`, `vectorize`, `compress`) and run locally on Apple Silicon via the torch **MPS** backend. The pipeline is reproducible and can be driven by an agent — no GUI tool in the loop. Cinema 4D / After Effects remain optional escape hatches for hand-finishing, and Blender headless (`bpy`) or image-to-3D (TripoSR) covers the rare case of true geometry.
+
 **Why not Unity:** a native Quest build gains ~10% performance at the cost of months learning C#/an engine and maintaining a separate pipeline. R3F handles layered-art scenes comfortably. Revisit only if WebXR performance actually blocks the work.
 
-**Known pipeline risk:** glTF export directly from Cinema 4D is workable but rough. Cleanest path is often **C4D → Blender → glTF**, or render depth maps and use displacement in Three.js. This is de-risked in Milestone 0 *before* any art investment.
+**Known pipeline risk:** mono-depth models are trained on photographs, so sparse line art can read flat or noisy. Mitigations: per-layer flat-depth assignment, hand-painted depth touch-ups. De-risked in Milestone 0 on a real scan *before* producing the full set.
 
 ## Roadmap
 
 Estimates assume part-time work, ~2 people. Each milestone ends at a **gate** — a decision point before committing further resources.
 
 ### M0 — Setup & risk-kill (week 1–2)
-- Buy Quest 3, enable developer mode, load a "hello WebXR" R3F scene onto the device.
-- **Critical de-risk:** push one Cinema 4D–rendered layered etching through the full pipeline (C4D → glTF → Three.js → viewed in Quest).
-- **Gate:** does the pipeline work end-to-end? If glTF export fights back, switch to the depth-map / 2.5D approach now, before producing art.
+- Buy Quest 3, enable developer mode, load the WebXR R3F scene onto the device.
+- **Critical de-risk:** run one real etching scan through `scripts/pipeline.py` (depth + segment), wire the depth map into a `DepthLayer`, view it in the browser and in the Quest.
+- **Gate:** does mono-depth give usable spatial relief on this line art? If it reads flat/noisy, decide the refinement approach (per-layer flat depth, hand-painted depth) now, before producing the full set.
 
 ### M1 — Pilot artwork & narrative (week 2–4)
 - Select one etching. Map visual motifs → story fragments → spatial layers → emotional tone.
@@ -71,9 +75,9 @@ Estimates assume part-time work, ~2 people. Each milestone ends at a **gate** �
 
 ### M2 — Digital preparation (week 3–6)
 - High-resolution scan/photography, cleanup, color and contrast correction.
-- Separate into layers: background, foreground, figures, textures, symbols, atmosphere.
-- Cinema 4D: build depth, animate 2–3 marks. After Effects: parallax passes.
-- **Deliverables:** high-resolution digital master, layered asset files, animation-ready elements, artwork and story metadata.
+- Separate into layers (`segment` / SAM 2): background, foreground, figures, textures, symbols, atmosphere.
+- Generate depth maps (`depth`), vectorize line work (`vectorize`), compress to WebP (`compress`). Tune `displace`/`drift` per layer; procedural GLSL handles motion.
+- **Deliverables:** high-resolution digital master, layered asset files + depth maps, artwork and story metadata.
 
 ### M3 — Web interactive prototype (week 5–9) — *first real milestone*
 - R3F scene in the browser: parallax depth from layers, subtle mark/figure animation, hover/click story fragments, ambient sound, one narration line, responsive exhibition page.

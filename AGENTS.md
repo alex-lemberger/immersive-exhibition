@@ -24,9 +24,14 @@ One codebase targets **browser and Meta Quest 3** via WebXR. No Unity, no C#.
   rendering code. If you find yourself writing per-artwork components, push the
   variation into the schema instead.
 - **Assets live in `public/`**, referenced by absolute path
-  (`/artworks/<id>/figures.png`). Authored in Cinema 4D / After Effects.
-  Web formats only: **glTF/GLB** (3D), **WebP/PNG** (layers, with alpha),
-  **Lottie** (vector motion), **mp3** (audio).
+  (`/artworks/<id>/figures.webp`). Produced **programmatically** via
+  `scripts/pipeline.py` (depth maps, alpha cutouts, vectorized SVG, WebP) — no
+  C4D/AE in the critical path. Web formats only: **WebP/PNG** (layers, straight
+  alpha), **depth PNG** (drives `DepthLayer`), **SVG** (line art), **glTF/GLB**
+  (only if a piece needs real geometry), **mp3** (audio).
+- **Depth, not modeling.** Spatial 2.5D comes from a depth map displacing a
+  plane (`src/scene/DepthLayer.tsx`); motion is procedural GLSL. Add `depth`,
+  `displace`, `drift` to a layer's JSON to activate it.
 - **Missing assets must never crash a scene.** `Layer` already falls back to a
   flat colour. Preserve that resilience — scenes are built before art exists.
 - **Units are metres.** Artwork `size` is its real-world plane size.
@@ -54,8 +59,9 @@ WebXR requires a secure context. The Quest browser opens
 ## Roadmap awareness (M0–M7)
 
 Each milestone ends at a **gate** — do not skip ahead past a failed gate. The
-big early risk is the **C4D → glTF → Quest** asset pipeline (M0); validate it on
-real export before producing art. Full roadmap in
+big early risk is **depth quality on line art** — mono-depth models are trained
+on photos and can read etchings flat (M0); validate on a real scan via
+`scripts/pipeline.py` and refine before producing the full set. Full roadmap in
 `docs/immersive-exhibition-abstract.md`.
 
 ## Skills
@@ -65,7 +71,7 @@ conventions above so phases move fast:
 
 | Skill | Use when |
 |---|---|
-| `asset-pipeline` | Exporting/validating C4D/AE assets for the web (M0, M2) |
+| `asset-pipeline` | Programmatic asset prep: depth/segment/vectorize/compress (M0, M2) |
 | `add-artwork` | Adding a new artwork end to end (M2, M6) |
 | `build-scene` | Building/extending an R3F artwork scene from layers (M3) |
 | `add-xr-interaction` | Adding gaze/hand/controller interaction (M4) |

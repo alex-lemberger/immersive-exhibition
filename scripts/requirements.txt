@@ -1,0 +1,9 @@
+# Programmatic asset pipeline (local GPU / Apple Silicon MPS).
+# Install into a venv: python3 -m venv .venv && source .venv/bin/activate && pip install -r scripts/requirements.txt
+torch
+torchvision
+transformers>=4.45
+pillow
+numpy
+rembg            # foreground/background cutout (onnxruntime under the hood)
+vtracer          # raster line art -> SVG

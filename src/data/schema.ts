@@ -17,6 +17,14 @@ export interface ArtworkLayer {
   /** Screen-mode parallax strength (head movement drives depth in VR). */
   parallax?: number
   opacity?: number
+  /** Optional depth map (path under /public) from the asset pipeline. When set,
+   *  the layer is rendered by `DepthLayer`: the plane is displaced by the depth
+   *  map and animated procedurally instead of staying flat. */
+  depth?: string
+  /** Displacement scale in world units for a depth layer. Default 0.1. */
+  displace?: number
+  /** Procedural drift amplitude for a depth layer's GLSL motion. Default 0. */
+  drift?: number
 }
 
 /** An interactive fragment of story anchored in the artwork's space. */
