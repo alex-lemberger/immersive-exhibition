@@ -186,6 +186,40 @@ def cmd_sam(args: argparse.Namespace) -> None:
     print(f"[sam] wrote {out_path} (mask covers {cover:.0%}, iou={out.iou_scores[0,0,best]:.2f})")
 
 
+def cmd_psd(args: argparse.Namespace) -> None:
+    """Export each visible layer of a hand-separated PSD to a full-canvas WebP
+    plus a layers.json manifest. Hand-cut layers beat any AI segmentation."""
+    import json
+    import re
+    from psd_tools import PSDImage
+
+    psd = PSDImage.open(args.input)
+    w, h = psd.size
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    entries = []
+    visible = [layer for layer in psd if layer.is_visible()]
+    for i, layer in enumerate(visible):
+        slug = re.sub(r"[^a-z0-9]+", "-", layer.name.lower()).strip("-") or f"layer-{i}"
+        img = layer.composite(viewport=(0, 0, w, h))  # full canvas, registered
+        if img is None:
+            continue
+        img = img.convert("RGBA")
+        if max(img.size) > args.max_dim:
+            s = args.max_dim / max(img.size)
+            img = img.resize((round(img.width * s), round(img.height * s)))
+        fpath = out_dir / f"{slug}.webp"
+        img.save(fpath, "WEBP", quality=args.quality, method=6)
+        entries.append({"id": slug, "file": f"/{fpath.as_posix().split('public/', 1)[-1]}"})
+        print(f"[psd] {layer.name!r} -> {fpath}")
+
+    manifest = out_dir / "layers.json"
+    # Stack order is bottom-to-top as iterated; back layers first. Assign z.
+    manifest.write_text(json.dumps({"canvas": [w, h], "layers": entries}, indent=2))
+    print(f"[psd] {len(entries)} layers, manifest {manifest} (canvas {w}x{h})")
+
+
 def cmd_all(args: argparse.Namespace) -> None:
     stem = Path(args.input).stem
     out_dir = Path(args.out_dir)
@@ -261,6 +295,13 @@ def build_parser() -> argparse.ArgumentParser:
     sm.add_argument("--feather", type=float, default=4.0)
     sm.add_argument("--quality", type=int, default=82)
     sm.set_defaults(func=cmd_sam)
+
+    ps = sub.add_parser("psd", help="export PSD layers to WebP + manifest")
+    ps.add_argument("input")
+    ps.add_argument("out_dir")
+    ps.add_argument("--max-dim", type=int, default=2048)
+    ps.add_argument("--quality", type=int, default=82)
+    ps.set_defaults(func=cmd_psd)
 
     a = sub.add_parser("all", help="depth + compressed color for one image")
     a.add_argument("input")

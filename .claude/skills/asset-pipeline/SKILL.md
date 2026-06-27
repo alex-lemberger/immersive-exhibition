@@ -31,6 +31,16 @@ python scripts/pipeline.py vectorize  scan.png out.svg             # vtracer lin
 python scripts/pipeline.py compress   scan.png out.webp --max-dim 2048
 ```
 
+## Best input: a hand-separated PSD
+
+If the artist provides a layered PSD, **use it — it beats every AI cutout**.
+`python scripts/pipeline.py psd art.psd public/artworks/<id>/` exports each
+visible layer to a full-canvas (registered) WebP plus `layers.json`. Build the
+artwork JSON layers from the manifest, back-to-front, assigning `z`. Prefer
+**flat parallax** for clean cutouts; add gentle `depth`/`displace` only on a
+hero layer that wants subtle relief. AI segmentation below is the fallback for
+when only a flat scan exists.
+
 ## Layer separation — what actually works (learned on the pilot)
 
 For line-art etchings on white paper, **only point-prompted SAM is reliable**:

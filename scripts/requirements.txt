@@ -7,3 +7,4 @@ pillow
 numpy
 rembg            # foreground/background cutout (onnxruntime under the hood)
 vtracer          # raster line art -> SVG
+psd-tools        # extract layers from a hand-separated PSD
