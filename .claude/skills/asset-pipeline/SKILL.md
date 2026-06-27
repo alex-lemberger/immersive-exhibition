@@ -22,12 +22,31 @@ pip install -r scripts/requirements.txt
 ## Commands
 
 ```bash
-python scripts/pipeline.py depth      scan.jpg out.depth.png       # Depth Anything V2
-python scripts/pipeline.py segment    scan.jpg out.png             # rembg alpha cutout
+python scripts/pipeline.py crop       scan.jpg out.png             # density crop, drops paper margin
+python scripts/pipeline.py depth      scan.png out.depth.png       # Depth Anything V2
+python scripts/pipeline.py sam        scan.png near.webp --device cpu --points "x,y;x,y"   # SAM cutout
+python scripts/pipeline.py split      scan.png depth.png near.webp # depth-threshold cutout (weak on line art)
+python scripts/pipeline.py segment    scan.png out.png             # rembg (weak on line art)
 python scripts/pipeline.py vectorize  scan.png out.svg             # vtracer line art -> SVG
-python scripts/pipeline.py compress   scan.jpg out.webp --max-dim 2048
-python scripts/pipeline.py all        scan.jpg public/artworks/<id>/   # depth + WebP
+python scripts/pipeline.py compress   scan.png out.webp --max-dim 2048
 ```
+
+## Layer separation — what actually works (learned on the pilot)
+
+For line-art etchings on white paper, **only point-prompted SAM is reliable**:
+
+- ❌ `segment` (rembg/u2net): trained on photos, can't read line art — grabs one
+  blob, ghosts the rest.
+- ❌ `split` (depth threshold): mono-depth has a ground-plane bias — keeps the
+  bottom-of-frame as "near", drops high figures. Good for smooth displacement,
+  bad for semantic figure/background cuts.
+- ✅ `sam --points`: give one foreground point per limb/figure region; it cuts
+  clean figures. **Must run `--device cpu`** — MPS can't cast SAM's float64
+  points. Points are in the *cropped* image's pixel coords.
+
+Pattern that worked: full image = flat background layer; SAM figures cutout =
+near layer (depth-displaced, floated forward). No inpainting hole because the
+full image sits behind.
 
 ## Steps for one artwork
 

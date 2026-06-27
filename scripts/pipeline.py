@@ -90,6 +90,102 @@ def cmd_compress(args: argparse.Namespace) -> None:
     print(f"[compress] wrote {out} ({img.width}x{img.height}, q={args.quality})")
 
 
+def cmd_crop(args: argparse.Namespace) -> None:
+    """Auto-crop the paper margin to the plate/drawing by content bounding box."""
+    import numpy as np
+    from PIL import Image
+
+    img = Image.open(args.input).convert("RGB")
+    gray = np.asarray(img.convert("L"))
+    mask = gray < args.threshold  # ink/content darker than paper
+
+    # Density per row/column ignores sparse margin specks (foxing, pencil ticks,
+    # signature) that a raw bounding box would latch onto.
+    col = mask.mean(axis=0)
+    row = mask.mean(axis=1)
+    xs = np.where(col > args.density)[0]
+    ys = np.where(row > args.density)[0]
+    if xs.size == 0 or ys.size == 0:
+        raise SystemExit("[crop] no dense content — lower --density or raise --threshold")
+    x0, x1 = int(xs.min()), int(xs.max())
+    y0, y1 = int(ys.min()), int(ys.max())
+    pad_x = round((x1 - x0) * args.pad)
+    pad_y = round((y1 - y0) * args.pad)
+    x0 = max(0, x0 - pad_x)
+    y0 = max(0, y0 - pad_y)
+    x1 = min(img.width, x1 + pad_x)
+    y1 = min(img.height, y1 + pad_y)
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    img.crop((x0, y0, x1, y1)).save(out)
+    print(f"[crop] {img.width}x{img.height} -> {x1-x0}x{y1-y0}  wrote {out}")
+
+
+def cmd_split(args: argparse.Namespace) -> None:
+    """Cut a near (foreground) layer from the color image using the depth map.
+
+    Produces an alpha-feathered cutout of the bright/near regions. Use the full
+    color image as the far layer behind it — no inpainting hole that way.
+    """
+    import numpy as np
+    from PIL import Image, ImageFilter
+
+    color = Image.open(args.color).convert("RGBA")
+    depth = Image.open(args.depth).convert("L").resize(color.size, Image.BILINEAR)
+    d = np.asarray(depth, dtype=np.float32) / 255.0
+
+    t, w = args.threshold, max(args.width, 1e-4)
+    alpha = np.clip((d - (t - w)) / (2 * w), 0.0, 1.0)  # smoothstep-ish ramp
+    a_img = Image.fromarray((alpha * 255).astype("uint8"), "L")
+    if args.feather > 0:
+        a_img = a_img.filter(ImageFilter.GaussianBlur(args.feather))
+
+    near = color.copy()
+    near.putalpha(a_img)
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    near.save(out, "WEBP", quality=args.quality, method=6)
+    print(f"[split] near cutout (threshold={t}) wrote {out}")
+
+
+def cmd_sam(args: argparse.Namespace) -> None:
+    """Point-prompted segmentation (SAM). Reliable on line art where saliency/
+    depth fail. Pass foreground points as 'x,y;x,y;...'; output is an
+    alpha-feathered cutout of the union mask."""
+    import numpy as np
+    import torch
+    from PIL import Image, ImageFilter
+    from transformers import SamModel, SamProcessor
+
+    pts = [[int(float(a)) for a in p.split(",")] for p in args.points.split(";") if p]
+    device = args.device or pick_device()
+    print(f"[sam] {len(pts)} points device={device}", file=sys.stderr)
+
+    image = Image.open(args.image).convert("RGB")
+    model = SamModel.from_pretrained(args.model).to(device)
+    processor = SamProcessor.from_pretrained(args.model)
+    inputs = processor(image, input_points=[[pts]], return_tensors="pt").to(device)
+    with torch.no_grad():
+        out = model(**inputs)
+    masks = processor.image_processor.post_process_masks(
+        out.pred_masks.cpu(), inputs["original_sizes"].cpu(),
+        inputs["reshaped_input_sizes"].cpu(),
+    )[0][0]  # (num_masks, H, W)
+    best = int(out.iou_scores[0, 0].argmax())
+    mask = masks[best].numpy().astype("uint8") * 255
+
+    a_img = Image.fromarray(mask, "L")
+    if args.feather > 0:
+        a_img = a_img.filter(ImageFilter.GaussianBlur(args.feather))
+    near = image.convert("RGBA")
+    near.putalpha(a_img)
+    out_path = Path(args.output)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    near.save(out_path, "WEBP", quality=args.quality, method=6)
+    cover = (np.asarray(a_img) > 10).mean()
+    print(f"[sam] wrote {out_path} (mask covers {cover:.0%}, iou={out.iou_scores[0,0,best]:.2f})")
+
+
 def cmd_all(args: argparse.Namespace) -> None:
     stem = Path(args.input).stem
     out_dir = Path(args.out_dir)
@@ -137,6 +233,34 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--max-dim", type=int, default=2048)
     c.add_argument("--quality", type=int, default=82)
     c.set_defaults(func=cmd_compress)
+
+    cr = sub.add_parser("crop", help="auto-crop paper margin to content bbox")
+    cr.add_argument("input")
+    cr.add_argument("output")
+    cr.add_argument("--threshold", type=int, default=200, help="0-255; below = content")
+    cr.add_argument("--density", type=float, default=0.02, help="min ink fraction per row/col")
+    cr.add_argument("--pad", type=float, default=0.01, help="fraction padding")
+    cr.set_defaults(func=cmd_crop)
+
+    sp = sub.add_parser("split", help="cut a near layer from color using depth")
+    sp.add_argument("color")
+    sp.add_argument("depth")
+    sp.add_argument("output")
+    sp.add_argument("--threshold", type=float, default=0.45, help="depth cut, 0-1")
+    sp.add_argument("--width", type=float, default=0.08, help="ramp half-width")
+    sp.add_argument("--feather", type=float, default=4.0, help="alpha blur px")
+    sp.add_argument("--quality", type=int, default=82)
+    sp.set_defaults(func=cmd_split)
+
+    sm = sub.add_parser("sam", help="point-prompted segmentation cutout")
+    sm.add_argument("image")
+    sm.add_argument("output")
+    sm.add_argument("--points", required=True, help="'x,y;x,y;...' foreground points")
+    sm.add_argument("--model", default="facebook/sam-vit-base")
+    sm.add_argument("--device", default=None)
+    sm.add_argument("--feather", type=float, default=4.0)
+    sm.add_argument("--quality", type=int, default=82)
+    sm.set_defaults(func=cmd_sam)
 
     a = sub.add_parser("all", help="depth + compressed color for one image")
     a.add_argument("input")

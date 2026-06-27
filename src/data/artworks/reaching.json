@@ -1,38 +1,44 @@
 {
   "id": "reaching",
   "title": "Reaching",
-  "description": "A descending figure and a kneeling, crowned figure reach across a gulf of sky toward a city below. Depth-displaced single plane from the etching scan — the M0 pilot.",
+  "description": "A descending figure and a kneeling, crowned figure reach across a gulf of sky above a city. Two layers: the figures (SAM cutout, depth-displaced) float forward over the full etching as background.",
   "emotionalTone": "yearning, suspended",
   "master": "/artworks/pilot/Reaching-3.jpg",
-  "size": [1.6, 1.97],
+  "size": [1.6, 2.02],
   "layers": [
     {
-      "id": "etching",
+      "id": "background",
       "texture": "/artworks/pilot/reaching.webp",
+      "z": -0.2,
+      "parallax": 0.03
+    },
+    {
+      "id": "figures",
+      "texture": "/artworks/pilot/reaching.near.webp",
       "depth": "/artworks/pilot/reaching.depth.png",
-      "z": 0.0,
-      "displace": 0.4,
-      "drift": 0.015
+      "z": 0.1,
+      "displace": 0.3,
+      "drift": 0.02
     }
   ],
   "storyNodes": [
     {
       "id": "node-descending",
-      "position": [0.37, 0.71, 0.2],
+      "position": [0.39, 0.74, 0.3],
       "title": "The Descending",
       "body": "Eyes closed, falling or floating — arms already open before the reach is answered.",
       "trigger": "click"
     },
     {
-      "id": "node-hands",
-      "position": [-0.21, 0.28, 0.2],
+      "id": "node-reach",
+      "position": [-0.16, 0.24, 0.3],
       "title": "The Reach",
       "body": "Two hands, a hair apart. The whole composition leans on this gap and never closes it.",
       "trigger": "click"
     },
     {
       "id": "node-kneeling",
-      "position": [-0.34, -0.02, 0.2],
+      "position": [-0.32, -0.02, 0.3],
       "title": "The Kneeling",
       "body": "Crowned and earthbound, rising on one knee from the city to answer.",
       "trigger": "click"

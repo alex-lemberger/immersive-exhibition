@@ -11,3 +11,7 @@ vite.config.d.ts
 __pycache__
 .venv
 *.pyc
+
+# large regenerable pipeline intermediates
+public/artworks/**/*.crop.png
+public/artworks/**/*.fg.png
