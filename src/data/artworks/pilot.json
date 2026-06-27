@@ -1,0 +1,34 @@
+{
+  "id": "pilot",
+  "title": "Pilot Artwork — Working Title",
+  "description": "Placeholder pilot used to validate the layer + story-node pipeline. Replace assets under /public/artworks/pilot/ with the real digital master and separated layers.",
+  "emotionalTone": "contemplative",
+  "master": "/artworks/pilot/master.jpg",
+  "size": [1.6, 2.0],
+  "ambientAudio": "/artworks/pilot/ambient.mp3",
+  "narration": "/artworks/pilot/narration.mp3",
+  "layers": [
+    { "id": "background", "texture": "/artworks/pilot/background.png", "z": -0.30, "parallax": 0.02 },
+    { "id": "midground", "texture": "/artworks/pilot/midground.png", "z": -0.10, "parallax": 0.05 },
+    { "id": "figures", "texture": "/artworks/pilot/figures.png", "z": 0.00, "parallax": 0.08 },
+    { "id": "foreground", "texture": "/artworks/pilot/foreground.png", "z": 0.15, "parallax": 0.12 },
+    { "id": "symbols", "texture": "/artworks/pilot/symbols.png", "z": 0.25, "parallax": 0.16, "opacity": 0.9 }
+  ],
+  "storyNodes": [
+    {
+      "id": "node-watcher",
+      "position": [-0.4, 0.3, 0.3],
+      "title": "The Watcher",
+      "body": "A figure half-hidden in the linework. Look longer and it looks back.",
+      "trigger": "click",
+      "audio": "/artworks/pilot/node-watcher.mp3"
+    },
+    {
+      "id": "node-threshold",
+      "position": [0.5, -0.2, 0.3],
+      "title": "The Threshold",
+      "body": "The doorway the whole composition leans toward — and never quite enters.",
+      "trigger": "click"
+    }
+  ]
+}
