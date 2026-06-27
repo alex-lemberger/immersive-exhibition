@@ -25,6 +25,27 @@ export interface ArtworkLayer {
   displace?: number
   /** Procedural drift amplitude for a depth layer's GLSL motion. Default 0. */
   drift?: number
+  /** Always-on ambient motion (orbs drift, figures sway, linework breathes). */
+  motion?: LayerMotion
+  /** Marks this layer as a "reacher" — it translates by `offset * reachT`,
+   *  where reachT is the scene's reach driver (breath + viewer + The Reach
+   *  node). Used to animate the gesture across the gulf. */
+  reach?: { offset: Vec3 }
+}
+
+export interface LayerMotion {
+  /** Horizontal float amplitude (world units). */
+  floatX?: number
+  /** Vertical float amplitude (world units). */
+  floatY?: number
+  /** Z-axis rotation amplitude (radians). */
+  sway?: number
+  /** Oscillation speed multiplier. Default 1. */
+  speed?: number
+  /** Phase offset so layers desync. */
+  phase?: number
+  /** Opacity breathing depth, 0..1. */
+  breathe?: number
 }
 
 /** An interactive fragment of story anchored in the artwork's space. */
