@@ -37,7 +37,7 @@ uniform float uIntensityWaveStrength;
 
 varying vec2 vUv;
 
-float luminance(vec3 c) {
+float inkLum(vec3 c) {
   return dot(c, vec3(0.299, 0.587, 0.114));
 }
 
@@ -55,7 +55,7 @@ void main() {
   float lens = 1.0 - smoothstep(uRadius * 0.45, uRadius, dist);
   float localActivation = clamp(max(uPressure, uWake * 0.35) * lens * uStrength, 0.0, 1.0);
 
-  float baseLum = luminance(base.rgb);
+  float baseLum = inkLum(base.rgb);
   float lineMask = smoothstep(uLineThreshold + 0.18, uLineThreshold, baseLum);
 
   float detail = 0.55 + uZoomDetail * 0.85;
@@ -66,7 +66,7 @@ void main() {
   vec4 shifted = texture2D(uMap, vUv + floatOffset);
   if (shifted.a < 0.05) discard;
 
-  float shiftedLum = luminance(shifted.rgb);
+  float shiftedLum = inkLum(shifted.rgb);
   float shiftedLineMask = smoothstep(uLineThreshold + 0.18, uLineThreshold, shiftedLum);
   float lineActivation = localActivation * shiftedLineMask;
   float exchange = sin(uTime * (1.6 + uZoomDetail * 1.6) + vUv.x * 83.0 + vUv.y * 61.0);
