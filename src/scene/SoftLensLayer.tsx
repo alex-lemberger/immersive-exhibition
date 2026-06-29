@@ -34,6 +34,8 @@ uniform float uStrength;
 uniform float uLineThreshold;
 uniform float uFloatStrength;
 uniform float uIntensityWaveStrength;
+uniform sampler2D uFlowMap;
+uniform float uHasFlowMap;
 
 varying vec2 vUv;
 
@@ -59,9 +61,31 @@ void main() {
   float lineMask = smoothstep(uLineThreshold + 0.18, uLineThreshold, baseLum);
 
   float detail = 0.55 + uZoomDetail * 0.85;
-  float waveA = sin(uTime * (1.2 + uZoomDetail * 1.8) + vUv.x * 46.0 + vUv.y * 31.0);
-  float waveB = cos(uTime * (0.9 + uZoomDetail * 1.3) + vUv.x * 17.0 - vUv.y * 39.0);
-  vec2 floatOffset = vec2(waveA, waveB) * uFloatStrength * detail * localActivation * lineMask;
+
+  vec2 floatOffset;
+
+  if (uHasFlowMap > 0.5) {
+    // Decode stroke tangent from RG flow map
+    vec2 flowDir = texture2D(uFlowMap, vUv).rg * 2.0 - 1.0;
+    float flowMag = length(flowDir);
+
+    // Staggered phase: each point on the image starts its loop at a different
+    // moment, so the motion travels as a wave through the composition
+    float phase = uTime * 1.4 + dot(vUv, vec2(4.3, 6.7));
+    float wave = sin(phase);
+
+    // Secondary tremor layered on top — fine noise along the stroke
+    float tremor = sin(uTime * 3.1 + vUv.x * 38.0 + vUv.y * 27.0) * 0.28;
+
+    // Where the flow map has no gradient (blank paper), flowMag ≈ 0
+    // so those pixels barely move — they freeze naturally
+    floatOffset = flowDir * (wave + tremor) * uFloatStrength * detail * localActivation * lineMask * flowMag;
+  } else {
+    // Fallback: original procedural waves
+    float waveA = sin(uTime * (1.2 + uZoomDetail * 1.8) + vUv.x * 46.0 + vUv.y * 31.0);
+    float waveB = cos(uTime * (0.9 + uZoomDetail * 1.3) + vUv.x * 17.0 - vUv.y * 39.0);
+    floatOffset = vec2(waveA, waveB) * uFloatStrength * detail * localActivation * lineMask;
+  }
 
   vec4 shifted = texture2D(uMap, vUv + floatOffset);
   if (shifted.a < 0.05) discard;
@@ -91,6 +115,7 @@ export function SoftLensLayer({
   size: [number, number]
 }) {
   const { texture: tex, failed } = useOptionalTexture(layer.texture)
+  const { texture: flowTex } = useOptionalTexture(layer.flow)
   const meshRef = useRef<THREE.Mesh>(null)
   const pointerUv = useRef(new THREE.Vector2(0.5, 0.5))
   const previousUv = useRef(new THREE.Vector2(0.5, 0.5))
@@ -122,6 +147,8 @@ export function SoftLensLayer({
       uLineThreshold: { value: config.lineThreshold },
       uFloatStrength: { value: config.floatStrength },
       uIntensityWaveStrength: { value: config.intensityWaveStrength },
+      uFlowMap: { value: null as THREE.Texture | null },
+      uHasFlowMap: { value: 0 },
     }),
     [
       config.floatStrength,
@@ -136,6 +163,8 @@ export function SoftLensLayer({
   uniforms.uMap.value = tex
   uniforms.uHasMap.value = tex ? 1 : 0
   uniforms.uFallback.value = failed && !tex ? 1 : 0
+  uniforms.uFlowMap.value = flowTex
+  uniforms.uHasFlowMap.value = flowTex ? 1 : 0
 
   const onPointerMove = (event: ThreeEvent<PointerEvent>) => {
     if (!event.uv) return

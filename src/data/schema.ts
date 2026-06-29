@@ -54,6 +54,8 @@ export interface ArtworkLayer {
   activation?: ActivationKind
   /** Parameters for `activation: "softLensLinework"`. */
   softLens?: SoftLensConfigInput
+  /** Tangent flow map (RG PNG from gen_flow_map.py) for stroke-direction displacement. */
+  flow?: string
 }
 
 export interface LayerMotion {

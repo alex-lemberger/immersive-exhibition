@@ -9,6 +9,7 @@
     {
       "id": "background",
       "texture": "/artworks/pilot/background.webp",
+      "flow": "/artworks/pilot/flow.png",
       "z": 0.0,
       "parallax": 0.0,
       "activation": "softLensLinework",
