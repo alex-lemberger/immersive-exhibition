@@ -55,37 +55,37 @@ void main() {
 
   float dist = distance(vUv, uCenter);
   float lens = 1.0 - smoothstep(uRadius * 0.45, uRadius, dist);
-  float localActivation = clamp(max(uPressure, uWake * 0.35) * lens * uStrength, 0.0, 1.0);
+  float activation = clamp(max(uPressure, uWake * 0.35) * uStrength, 0.0, 1.0);
 
   float baseLum = inkLum(base.rgb);
   float lineMask = smoothstep(uLineThreshold + 0.18, uLineThreshold, baseLum);
 
-  float detail = 0.55 + uZoomDetail * 0.85;
-
   vec2 floatOffset;
 
   if (uHasFlowMap > 0.5) {
-    // Decode stroke tangent; rotate 90° to get stroke normal (across the line)
-    vec2 tangent = texture2D(uFlowMap, vUv).rg * 2.0 - 1.0;
-    float flowMag = length(tangent);
-    vec2 strokeNormal = vec2(-tangent.y, tangent.x); // perpendicular = bunches/spreads lines
+    // Sample flow at the LENS CENTER — one dominant stroke direction for the whole region.
+    // This makes the warp spatially coherent: all lines in the area bend together.
+    vec2 dominantTangent = texture2D(uFlowMap, uCenter).rg * 2.0 - 1.0;
+    // Stroke normal = perpendicular to tangent = axis across which lines run
+    vec2 warpAxis = normalize(vec2(-dominantTangent.y, dominantTangent.x) + vec2(0.001));
 
-    // Radial bulge: push region toward/away from lens center — creates convex lens distortion
-    vec2 fromCenter = vUv - uCenter;
-    float radialDist = length(fromCenter);
-    vec2 radialDir = radialDist > 0.001 ? fromCenter / radialDist : vec2(0.0);
+    // Project each UV position onto the warp axis to get a smooth scalar wave input
+    float pos = dot(vUv, warpAxis);
 
-    // Slow breath (Op-Art bulge inhale/exhale) + fast stroke ripple traveling across composition
-    float breath  = sin(uTime * 0.7) * localActivation;
-    float ripple  = sin(uTime * 2.2 + dot(vUv, vec2(5.1, 7.3))) * flowMag;
+    // Two interfering frequencies — like two Riley prints overlaid, creates moire depth
+    float wave1 = sin(pos * 22.0 + uTime * 0.9);
+    float wave2 = sin(pos * 14.0 - uTime * 0.55) * 0.5;
 
-    // Normal displacement = lines bunch/spread (the Op-Art moire)
-    // Radial displacement = whole region bulges under the lens
-    floatOffset = (strokeNormal * ripple * 0.55 + radialDir * breath) * uFloatStrength * detail * localActivation * lineMask;
+    // Displacement is perpendicular to warpAxis (across strokes = lines bunch/spread)
+    vec2 perpAxis = vec2(-warpAxis.y, warpAxis.x);
+
+    // Apply to whole region (paper + lines), not just dark pixels —
+    // coherent rubber-sheet warp is what makes Op-Art, not selective pixel jitter
+    floatOffset = perpAxis * (wave1 + wave2) * uFloatStrength * activation * lens;
   } else {
-    float waveA = sin(uTime * (1.2 + uZoomDetail * 1.8) + vUv.x * 46.0 + vUv.y * 31.0);
-    float waveB = cos(uTime * (0.9 + uZoomDetail * 1.3) + vUv.x * 17.0 - vUv.y * 39.0);
-    floatOffset = vec2(waveA, waveB) * uFloatStrength * detail * localActivation * lineMask;
+    float waveA = sin(uTime * 1.2 + vUv.x * 46.0 + vUv.y * 31.0);
+    float waveB = cos(uTime * 0.9 + vUv.x * 17.0 - vUv.y * 39.0);
+    floatOffset = vec2(waveA, waveB) * uFloatStrength * activation * lineMask;
   }
 
   vec4 shifted = texture2D(uMap, vUv + floatOffset);
