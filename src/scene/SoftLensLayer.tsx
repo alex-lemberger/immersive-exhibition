@@ -36,6 +36,8 @@ uniform float uFloatStrength;
 uniform float uIntensityWaveStrength;
 uniform sampler2D uFlowMap;
 uniform float uHasFlowMap;
+uniform sampler2D uContourMap;
+uniform float uHasContourMap;
 
 varying vec2 vUv;
 
@@ -98,6 +100,14 @@ void main() {
   float pressureTrace = uLensOpacity * lens * (1.0 - shiftedLineMask) * 0.08;
   color = clamp(color - vec3(pressureTrace), 0.0, 1.0);
 
+  // Contour overlay: warped topographic lines fade in over the etching on activation.
+  // floatOffset already computed above — contour warps, etching stays put underneath.
+  if (uHasContourMap > 0.5) {
+    vec3 contourSample = texture2D(uContourMap, vUv + floatOffset).rgb;
+    float contourBlend = activation * lens * 0.9;
+    color = mix(color, contourSample, contourBlend);
+  }
+
   gl_FragColor = vec4(color, shifted.a * uOpacity);
   #include <colorspace_fragment>
 }
@@ -112,6 +122,7 @@ export function SoftLensLayer({
 }) {
   const { texture: tex, failed } = useOptionalTexture(layer.texture)
   const { texture: flowTex } = useOptionalTexture(layer.flow)
+  const { texture: contourTex } = useOptionalTexture(layer.contour)
   const meshRef = useRef<THREE.Mesh>(null)
   const pointerUv = useRef(new THREE.Vector2(0.5, 0.5))
   const previousUv = useRef(new THREE.Vector2(0.5, 0.5))
@@ -145,6 +156,8 @@ export function SoftLensLayer({
       uIntensityWaveStrength: { value: config.intensityWaveStrength },
       uFlowMap: { value: null as THREE.Texture | null },
       uHasFlowMap: { value: 0 },
+      uContourMap: { value: null as THREE.Texture | null },
+      uHasContourMap: { value: 0 },
     }),
     [
       config.floatStrength,
@@ -161,6 +174,8 @@ export function SoftLensLayer({
   uniforms.uFallback.value = failed && !tex ? 1 : 0
   uniforms.uFlowMap.value = flowTex
   uniforms.uHasFlowMap.value = flowTex ? 1 : 0
+  uniforms.uContourMap.value = contourTex
+  uniforms.uHasContourMap.value = contourTex ? 1 : 0
 
   const onPointerMove = (event: ThreeEvent<PointerEvent>) => {
     if (!event.uv) return
