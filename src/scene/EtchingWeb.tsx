@@ -11,7 +11,6 @@ const CH = 660
 const WEB_POINTS     = 20    // ink-anchored ribbon web nodes
 const WEB_NEIGHBORS  = 2
 const WEB_PROX       = 0.28  // UV radius for web activation
-const FADE           = 0.04  // alpha removed per frame via destination-out → trail fade
 
 const CHAIN_MAX      = 280   // max live chain dots
 const CHAIN_ALPHA    = 0.48  // starting alpha
@@ -112,8 +111,7 @@ export function EtchingWeb({ layer, size }: { layer: ArtworkLayer; size: [number
     canvasRef.current = canvas
     const ctx = canvas.getContext('2d')!
     ctxRef.current = ctx
-    ctx.fillStyle = 'white'
-    ctx.fillRect(0, 0, CW, CH)
+    ctx.clearRect(0, 0, CW, CH)
 
     const texture = new THREE.CanvasTexture(canvas)
     texture.colorSpace = THREE.SRGBColorSpace
@@ -143,9 +141,8 @@ export function EtchingWeb({ layer, size }: { layer: ArtworkLayer; size: [number
     return () => { texture.dispose() }
   }, [layer.texture])
 
-  // ── Material: white canvas = multiply-identity, black lines darken etching ──
   const material = useMemo(() =>
-    new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.MultiplyBlending, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.NormalBlending, depthWrite: false }),
   [])
 
   useEffect(() => {
@@ -182,17 +179,8 @@ export function EtchingWeb({ layer, size }: { layer: ArtworkLayer; size: [number
     const puv = pointerUv.current
     const [ftx, fty] = flowRef.current
 
-    // ── Fade trails — overlay white to push pixels back toward white ──────
-    ctx.fillStyle = `rgba(255,255,255,${FADE})`
-    ctx.fillRect(0, 0, CW, CH)
-
-    // ── Vignette — redrawn every frame to survive the fade ────────────────
-    const vig = ctx.createRadialGradient(CW * 0.5, CH * 0.5, CW * 0.22, CW * 0.5, CH * 0.5, CW * 0.78)
-    vig.addColorStop(0,   'rgba(0,0,0,0)')
-    vig.addColorStop(0.6, 'rgba(0,0,0,0)')
-    vig.addColorStop(1,   'rgba(0,0,0,0.55)')
-    ctx.fillStyle = vig
-    ctx.fillRect(0, 0, CW, CH)
+    // ── Clear each frame — trails come from per-particle alpha decay ──────
+    ctx.clearRect(0, 0, CW, CH)
 
     // ─────────────────────────────────────────────────────────────────────
     // LAYER 1 — Web (Ribbons-2): ink-anchored nodes draw lines to neighbors
@@ -316,6 +304,14 @@ export function EtchingWeb({ layer, size }: { layer: ArtworkLayer; size: [number
       ctx.lineTo(nx, ny)
       ctx.stroke()
     }
+
+    // ── Vignette ──────────────────────────────────────────────────────────
+    const vig = ctx.createRadialGradient(CW * 0.5, CH * 0.5, CW * 0.22, CW * 0.5, CH * 0.5, CW * 0.78)
+    vig.addColorStop(0,   'rgba(0,0,0,0)')
+    vig.addColorStop(0.6, 'rgba(0,0,0,0)')
+    vig.addColorStop(1,   'rgba(0,0,0,0.45)')
+    ctx.fillStyle = vig
+    ctx.fillRect(0, 0, CW, CH)
 
     tex.needsUpdate = true
   })
