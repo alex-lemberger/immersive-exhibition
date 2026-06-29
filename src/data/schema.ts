@@ -6,6 +6,23 @@ export type Vec3 = [number, number, number]
 
 export type TriggerKind = 'click' | 'gaze' | 'proximity'
 
+export interface SoftLensConfigInput {
+  /** Circular activation radius in layer UV units. */
+  activationRadius?: number
+  /** Seconds of stillness needed for mature line behavior. */
+  activationBuildTime?: number
+  /** Seconds for local activation to dry after movement resumes. */
+  activationDecayTime?: number
+  /** Overall effect strength, 0..1. */
+  activationStrength?: number
+  /** Luminance cutoff below which pixels count as etched linework. */
+  lineThreshold?: number
+  /** UV displacement amplitude for activated line micro-floating. */
+  floatStrength?: number
+  /** Ink-only brightness exchange amplitude for activated lines. */
+  intensityWaveStrength?: number
+}
+
 /** One depth layer of the artwork (background, figures, symbols, …). */
 export interface ArtworkLayer {
   id: string
