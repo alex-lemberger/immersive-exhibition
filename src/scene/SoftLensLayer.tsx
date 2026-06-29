@@ -62,28 +62,16 @@ void main() {
   float baseLum = inkLum(base.rgb);
   float lineMask = smoothstep(uLineThreshold + 0.18, uLineThreshold, baseLum);
 
+  // Hoist flow tangent — used for both line warp and contour cloud layers
+  vec2 flowTangent = vec2(1.0, 0.0);
+  if (uHasFlowMap > 0.5) {
+    vec2 raw = texture2D(uFlowMap, vec2(0.5, 0.5)).rg * 2.0 - 1.0;
+    flowTangent = normalize(raw + vec2(0.001));
+  }
+
   vec2 floatOffset;
 
-  if (uHasFlowMap > 0.5) {
-    // Sample flow at image center — stable point, doesn't change with pointer,
-    // gives a single coherent warp axis for the whole composition.
-    vec2 dominantTangent = texture2D(uFlowMap, vec2(0.5, 0.5)).rg * 2.0 - 1.0;
-    vec2 warpAxis = normalize(vec2(-dominantTangent.y, dominantTangent.x) + vec2(0.001));
-
-    // Project UV onto warp axis — smooth scalar field across the image
-    float pos = dot(vUv, warpAxis);
-
-    // Low spatial frequency (10 waves across image) + slow time = smooth Riley undulation
-    float wave1 = sin(pos * 10.0 + uTime * 0.35);
-    float wave2 = sin(pos *  6.0 + uTime * 0.20) * 0.45;
-
-    vec2 perpAxis = vec2(-warpAxis.y, warpAxis.x);
-    floatOffset = perpAxis * (wave1 + wave2) * uFloatStrength * activation * lens;
-  } else {
-    float waveA = sin(uTime * 1.2 + vUv.x * 46.0 + vUv.y * 31.0);
-    float waveB = cos(uTime * 0.9 + vUv.x * 17.0 - vUv.y * 39.0);
-    floatOffset = vec2(waveA, waveB) * uFloatStrength * activation * lineMask;
-  }
+  floatOffset = vec2(0.0);
 
   vec4 shifted = texture2D(uMap, vUv + floatOffset);
   if (shifted.a < 0.05) discard;
@@ -99,25 +87,6 @@ void main() {
 
   float pressureTrace = uLensOpacity * lens * (1.0 - shiftedLineMask) * 0.08;
   color = clamp(color - vec3(pressureTrace), 0.0, 1.0);
-
-  // Contour overlay: fold UV around lens center (creates labyrinthine quad symmetry),
-  // then pull toward center (Escher corridor depth), then apply wave displacement.
-  if (uHasContourMap > 0.5) {
-    // Fold both axes around lens center — all 4 quadrants mirror to top-right.
-    // Organic contour lines become a mandala/coral structure.
-    vec2 centered = vUv - uCenter;
-    vec2 folded = uCenter + abs(centered);
-
-    // Perspective pull: pixels draw toward the center like a vanishing point.
-    // Stronger at lens peak, zero outside lens. Creates the corridor recession.
-    float pull = activation * lens * 0.32;
-    vec2 corridor = mix(folded, uCenter + vec2(0.001), pull);
-
-    // Wave displacement on top of the folded+corridor UV
-    vec3 contourSample = texture2D(uContourMap, corridor + floatOffset * 0.6).rgb;
-    float contourBlend = activation * lens * 0.92;
-    color = mix(color, contourSample, contourBlend);
-  }
 
   gl_FragColor = vec4(color, shifted.a * uOpacity);
   #include <colorspace_fragment>
