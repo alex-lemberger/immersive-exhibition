@@ -112,11 +112,11 @@ export function EtchingWeb({ layer, size }: { layer: ArtworkLayer; size: [number
     canvasRef.current = canvas
     const ctx = canvas.getContext('2d')!
     ctxRef.current = ctx
-    ctx.clearRect(0, 0, CW, CH)
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, CW, CH)
 
     const texture = new THREE.CanvasTexture(canvas)
     texture.colorSpace = THREE.SRGBColorSpace
-    texture.premultiplyAlpha = false
     textureRef.current = texture
 
     if (!layer.texture) return
@@ -143,9 +143,9 @@ export function EtchingWeb({ layer, size }: { layer: ArtworkLayer; size: [number
     return () => { texture.dispose() }
   }, [layer.texture])
 
-  // ── Material (additive blending — black canvas areas add nothing) ──────────
+  // ── Material: white canvas = multiply-identity, black lines darken etching ──
   const material = useMemo(() =>
-    new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.NormalBlending, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.MultiplyBlending, depthWrite: false }),
   [])
 
   useEffect(() => {
@@ -154,12 +154,17 @@ export function EtchingWeb({ layer, size }: { layer: ArtworkLayer; size: [number
     material.needsUpdate = true
   })
 
-  // ── Pointer ───────────────────────────────────────────────────────────────
+  // ── Pointer (mouse + touch) ───────────────────────────────────────────────
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     if (e.uv) pointerUv.current.copy(e.uv)
     pointerActive.current = true
   }
+  const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
+    if (e.uv) pointerUv.current.copy(e.uv)
+    pointerActive.current = true
+  }
   const onPointerLeave = () => { pointerActive.current = false }
+  const onPointerUp = () => { pointerActive.current = false }
 
   // ── Frame loop ────────────────────────────────────────────────────────────
   useFrame((_, delta) => {
@@ -177,11 +182,9 @@ export function EtchingWeb({ layer, size }: { layer: ArtworkLayer; size: [number
     const puv = pointerUv.current
     const [ftx, fty] = flowRef.current
 
-    // ── Fade trails — reduce alpha of all canvas pixels ──────────────────
-    ctx.globalCompositeOperation = 'destination-out'
-    ctx.fillStyle = `rgba(0,0,0,${FADE})`
+    // ── Fade trails — overlay white to push pixels back toward white ──────
+    ctx.fillStyle = `rgba(255,255,255,${FADE})`
     ctx.fillRect(0, 0, CW, CH)
-    ctx.globalCompositeOperation = 'source-over'
 
     // ── Vignette — redrawn every frame to survive the fade ────────────────
     const vig = ctx.createRadialGradient(CW * 0.5, CH * 0.5, CW * 0.22, CW * 0.5, CH * 0.5, CW * 0.78)
@@ -319,7 +322,8 @@ export function EtchingWeb({ layer, size }: { layer: ArtworkLayer; size: [number
 
   return (
     <mesh ref={meshRef} position={[0, 0, layer.z + 0.005]}
-      onPointerMove={onPointerMove} onPointerLeave={onPointerLeave}>
+      onPointerMove={onPointerMove} onPointerDown={onPointerDown}
+      onPointerLeave={onPointerLeave} onPointerUp={onPointerUp}>
       <planeGeometry args={[size[0], size[1]]} />
       <primitive object={material} attach="material" />
     </mesh>
