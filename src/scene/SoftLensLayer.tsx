@@ -63,24 +63,19 @@ void main() {
   vec2 floatOffset;
 
   if (uHasFlowMap > 0.5) {
-    // Sample flow at the LENS CENTER — one dominant stroke direction for the whole region.
-    // This makes the warp spatially coherent: all lines in the area bend together.
-    vec2 dominantTangent = texture2D(uFlowMap, uCenter).rg * 2.0 - 1.0;
-    // Stroke normal = perpendicular to tangent = axis across which lines run
+    // Sample flow at image center — stable point, doesn't change with pointer,
+    // gives a single coherent warp axis for the whole composition.
+    vec2 dominantTangent = texture2D(uFlowMap, vec2(0.5, 0.5)).rg * 2.0 - 1.0;
     vec2 warpAxis = normalize(vec2(-dominantTangent.y, dominantTangent.x) + vec2(0.001));
 
-    // Project each UV position onto the warp axis to get a smooth scalar wave input
+    // Project UV onto warp axis — smooth scalar field across the image
     float pos = dot(vUv, warpAxis);
 
-    // Two interfering frequencies — like two Riley prints overlaid, creates moire depth
-    float wave1 = sin(pos * 22.0 + uTime * 0.9);
-    float wave2 = sin(pos * 14.0 - uTime * 0.55) * 0.5;
+    // Low spatial frequency (10 waves across image) + slow time = smooth Riley undulation
+    float wave1 = sin(pos * 10.0 + uTime * 0.35);
+    float wave2 = sin(pos *  6.0 + uTime * 0.20) * 0.45;
 
-    // Displacement is perpendicular to warpAxis (across strokes = lines bunch/spread)
     vec2 perpAxis = vec2(-warpAxis.y, warpAxis.x);
-
-    // Apply to whole region (paper + lines), not just dark pixels —
-    // coherent rubber-sheet warp is what makes Op-Art, not selective pixel jitter
     floatOffset = perpAxis * (wave1 + wave2) * uFloatStrength * activation * lens;
   } else {
     float waveA = sin(uTime * 1.2 + vUv.x * 46.0 + vUv.y * 31.0);
