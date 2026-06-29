@@ -94,6 +94,9 @@ export function SoftLensLayer({
   const meshRef = useRef<THREE.Mesh>(null)
   const pointerUv = useRef(new THREE.Vector2(0.5, 0.5))
   const previousUv = useRef(new THREE.Vector2(0.5, 0.5))
+  const hasPointerInteraction = useRef(false)
+  const pointerActive = useRef(false)
+  const worldPosition = useRef(new THREE.Vector3())
   const frameState = useRef<SoftLensFrame>({
     pressure: 0,
     wake: 0,
@@ -137,6 +140,12 @@ export function SoftLensLayer({
   const onPointerMove = (event: ThreeEvent<PointerEvent>) => {
     if (!event.uv) return
     pointerUv.current.copy(event.uv)
+    hasPointerInteraction.current = true
+    pointerActive.current = true
+  }
+
+  const onPointerLeave = () => {
+    pointerActive.current = false
   }
 
   useFrame((state, delta) => {
@@ -166,12 +175,31 @@ export function SoftLensLayer({
 
     mesh.position.set(x, y, z)
 
-    const speed = pointerUv.current.distanceTo(previousUv.current) / Math.max(delta, 0.001)
+    if (!hasPointerInteraction.current) {
+      frameState.current = {
+        pressure: 0,
+        wake: 0,
+        lensOpacity: 0,
+        zoomDetail: 0,
+      }
+      uniforms.uCenter.value.copy(pointerUv.current)
+      uniforms.uRadius.value = config.radius
+      uniforms.uPressure.value = 0
+      uniforms.uWake.value = 0
+      uniforms.uLensOpacity.value = 0
+      uniforms.uZoomDetail.value = 0
+      uniforms.uTime.value = t
+      uniforms.uOpacity.value = layer.opacity ?? 1
+      return
+    }
+
+    const speed = pointerActive.current
+      ? pointerUv.current.distanceTo(previousUv.current) / Math.max(delta, 0.001)
+      : 0.12
     previousUv.current.lerp(pointerUv.current, 0.35)
 
-    const worldPosition = new THREE.Vector3()
-    mesh.getWorldPosition(worldPosition)
-    const cameraDistance = state.camera.position.distanceTo(worldPosition)
+    mesh.getWorldPosition(worldPosition.current)
+    const cameraDistance = state.camera.position.distanceTo(worldPosition.current)
 
     frameState.current = computeSoftLensFrame({
       previousPressure: frameState.current.pressure,
@@ -194,7 +222,12 @@ export function SoftLensLayer({
   })
 
   return (
-    <mesh ref={meshRef} position={[0, 0, layer.z]} onPointerMove={onPointerMove}>
+    <mesh
+      ref={meshRef}
+      position={[0, 0, layer.z]}
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+    >
       <planeGeometry args={[size[0], size[1]]} />
       <shaderMaterial
         uniforms={uniforms}
