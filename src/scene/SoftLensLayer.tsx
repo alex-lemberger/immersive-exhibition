@@ -100,11 +100,22 @@ void main() {
   float pressureTrace = uLensOpacity * lens * (1.0 - shiftedLineMask) * 0.08;
   color = clamp(color - vec3(pressureTrace), 0.0, 1.0);
 
-  // Contour overlay: warped topographic lines fade in over the etching on activation.
-  // floatOffset already computed above — contour warps, etching stays put underneath.
+  // Contour overlay: fold UV around lens center (creates labyrinthine quad symmetry),
+  // then pull toward center (Escher corridor depth), then apply wave displacement.
   if (uHasContourMap > 0.5) {
-    vec3 contourSample = texture2D(uContourMap, vUv + floatOffset).rgb;
-    float contourBlend = activation * lens * 0.9;
+    // Fold both axes around lens center — all 4 quadrants mirror to top-right.
+    // Organic contour lines become a mandala/coral structure.
+    vec2 centered = vUv - uCenter;
+    vec2 folded = uCenter + abs(centered);
+
+    // Perspective pull: pixels draw toward the center like a vanishing point.
+    // Stronger at lens peak, zero outside lens. Creates the corridor recession.
+    float pull = activation * lens * 0.32;
+    vec2 corridor = mix(folded, uCenter + vec2(0.001), pull);
+
+    // Wave displacement on top of the folded+corridor UV
+    vec3 contourSample = texture2D(uContourMap, corridor + floatOffset * 0.6).rgb;
+    float contourBlend = activation * lens * 0.92;
     color = mix(color, contourSample, contourBlend);
   }
 
