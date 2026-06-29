@@ -15,9 +15,13 @@ export function useOptionalTexture(url?: string): OptionalTextureState {
     setFailed(!url)
     if (!url) return
 
+    const resolvedUrl = url.startsWith('/')
+      ? `${import.meta.env.BASE_URL}${url.slice(1)}`
+      : url
+
     let active = true
     new THREE.TextureLoader().load(
-      url,
+      resolvedUrl,
       (t) => {
         if (!active) return
         t.colorSpace = THREE.SRGBColorSpace
