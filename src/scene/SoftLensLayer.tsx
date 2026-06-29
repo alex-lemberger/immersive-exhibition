@@ -93,7 +93,7 @@ void main() {
 
   float shiftedLum = inkLum(shifted.rgb);
   float shiftedLineMask = smoothstep(uLineThreshold + 0.18, uLineThreshold, shiftedLum);
-  float lineActivation = localActivation * shiftedLineMask;
+  float lineActivation = activation * shiftedLineMask;
   float exchange = sin(uTime * (1.6 + uZoomDetail * 1.6) + vUv.x * 83.0 + vUv.y * 61.0);
   float inkShift = exchange * uIntensityWaveStrength * lineActivation;
 
