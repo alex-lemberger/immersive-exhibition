@@ -1,7 +1,7 @@
 {
   "id": "reaching",
   "title": "Reaching",
-  "description": "A descending figure and a kneeling, crowned figure reach across a gulf of sky above a city. Hand-separated PSD layers: full etching as background, the kneeling figure and two orbs floated forward as flat parallax planes.",
+  "description": "A descending figure and a kneeling, crowned figure reach across a gulf of sky above a city.",
   "emotionalTone": "yearning, suspended",
   "master": "/artworks/pilot/Reaching-3.jpg",
   "size": [1.6, 2.05],
@@ -9,61 +9,8 @@
     {
       "id": "background",
       "texture": "/artworks/pilot/background.webp",
-      "z": -0.25,
+      "z": 0.0,
       "parallax": 0.0,
-      "motion": { "floatY": 0.004, "speed": 0.18 },
-      "activation": "softLensLinework",
-      "softLens": {
-        "activationRadius": 0.16,
-        "activationBuildTime": 1.0,
-        "activationDecayTime": 3.0,
-        "activationStrength": 0.75,
-        "lineThreshold": 0.55,
-        "floatStrength": 0.004,
-        "intensityWaveStrength": 0.22
-      }
-    },
-    {
-      "id": "ball2",
-      "texture": "/artworks/pilot/ball2.webp",
-      "z": -0.12,
-      "parallax": 0.02,
-      "motion": { "floatX": 0.02, "floatY": 0.03, "speed": 0.4, "phase": 2.1, "breathe": 0.25 },
-      "activation": "softLensLinework",
-      "softLens": {
-        "activationRadius": 0.16,
-        "activationBuildTime": 1.0,
-        "activationDecayTime": 3.0,
-        "activationStrength": 0.75,
-        "lineThreshold": 0.55,
-        "floatStrength": 0.004,
-        "intensityWaveStrength": 0.22
-      }
-    },
-    {
-      "id": "ball1",
-      "texture": "/artworks/pilot/ball1.webp",
-      "z": -0.06,
-      "parallax": 0.03,
-      "motion": { "floatX": 0.025, "floatY": 0.022, "speed": 0.5, "phase": 0.0, "breathe": 0.2 },
-      "activation": "softLensLinework",
-      "softLens": {
-        "activationRadius": 0.16,
-        "activationBuildTime": 1.0,
-        "activationDecayTime": 3.0,
-        "activationStrength": 0.75,
-        "lineThreshold": 0.55,
-        "floatStrength": 0.004,
-        "intensityWaveStrength": 0.22
-      }
-    },
-    {
-      "id": "figure1",
-      "texture": "/artworks/pilot/figure1.webp",
-      "z": 0.18,
-      "parallax": 0.06,
-      "motion": { "floatY": 0.012, "sway": 0.012, "speed": 0.55 },
-      "reach": { "offset": [0.06, 0.13, 0.08] },
       "activation": "softLensLinework",
       "softLens": {
         "activationRadius": 0.16,
