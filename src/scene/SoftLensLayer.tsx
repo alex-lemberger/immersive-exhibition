@@ -65,23 +65,24 @@ void main() {
   vec2 floatOffset;
 
   if (uHasFlowMap > 0.5) {
-    // Decode stroke tangent from RG flow map
-    vec2 flowDir = texture2D(uFlowMap, vUv).rg * 2.0 - 1.0;
-    float flowMag = length(flowDir);
+    // Decode stroke tangent; rotate 90° to get stroke normal (across the line)
+    vec2 tangent = texture2D(uFlowMap, vUv).rg * 2.0 - 1.0;
+    float flowMag = length(tangent);
+    vec2 strokeNormal = vec2(-tangent.y, tangent.x); // perpendicular = bunches/spreads lines
 
-    // Staggered phase: each point on the image starts its loop at a different
-    // moment, so the motion travels as a wave through the composition
-    float phase = uTime * 1.4 + dot(vUv, vec2(4.3, 6.7));
-    float wave = sin(phase);
+    // Radial bulge: push region toward/away from lens center — creates convex lens distortion
+    vec2 fromCenter = vUv - uCenter;
+    float radialDist = length(fromCenter);
+    vec2 radialDir = radialDist > 0.001 ? fromCenter / radialDist : vec2(0.0);
 
-    // Secondary tremor layered on top — fine noise along the stroke
-    float tremor = sin(uTime * 3.1 + vUv.x * 38.0 + vUv.y * 27.0) * 0.28;
+    // Slow breath (Op-Art bulge inhale/exhale) + fast stroke ripple traveling across composition
+    float breath  = sin(uTime * 0.7) * localActivation;
+    float ripple  = sin(uTime * 2.2 + dot(vUv, vec2(5.1, 7.3))) * flowMag;
 
-    // Where the flow map has no gradient (blank paper), flowMag ≈ 0
-    // so those pixels barely move — they freeze naturally
-    floatOffset = flowDir * (wave + tremor) * uFloatStrength * detail * localActivation * lineMask * flowMag;
+    // Normal displacement = lines bunch/spread (the Op-Art moire)
+    // Radial displacement = whole region bulges under the lens
+    floatOffset = (strokeNormal * ripple * 0.55 + radialDir * breath) * uFloatStrength * detail * localActivation * lineMask;
   } else {
-    // Fallback: original procedural waves
     float waveA = sin(uTime * (1.2 + uZoomDetail * 1.8) + vUv.x * 46.0 + vUv.y * 31.0);
     float waveB = cos(uTime * (0.9 + uZoomDetail * 1.3) + vUv.x * 17.0 - vUv.y * 39.0);
     floatOffset = vec2(waveA, waveB) * uFloatStrength * detail * localActivation * lineMask;

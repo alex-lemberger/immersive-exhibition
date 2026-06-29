@@ -19,7 +19,7 @@
         "activationDecayTime": 3.0,
         "activationStrength": 0.75,
         "lineThreshold": 0.55,
-        "floatStrength": 0.016,
+        "floatStrength": 0.072,
         "intensityWaveStrength": 0.22
       }
     }
