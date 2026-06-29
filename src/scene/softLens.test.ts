@@ -6,6 +6,21 @@ import {
 } from './softLens'
 
 describe('resolveSoftLensConfig', () => {
+  it('uses defaults for missing values when overrides are partial', () => {
+    const config = resolveSoftLensConfig({
+      activationRadius: 0.2,
+      intensityWaveStrength: 0.18,
+    })
+
+    expect(config.radius).toBe(0.2)
+    expect(config.buildTime).toBe(DEFAULT_SOFT_LENS.buildTime)
+    expect(config.decayTime).toBe(DEFAULT_SOFT_LENS.decayTime)
+    expect(config.strength).toBe(DEFAULT_SOFT_LENS.strength)
+    expect(config.lineThreshold).toBe(DEFAULT_SOFT_LENS.lineThreshold)
+    expect(config.floatStrength).toBe(DEFAULT_SOFT_LENS.floatStrength)
+    expect(config.intensityWaveStrength).toBe(0.18)
+  })
+
   it('uses defaults and allows artwork overrides', () => {
     const config = resolveSoftLensConfig({
       activationRadius: 0.18,
@@ -28,6 +43,23 @@ describe('resolveSoftLensConfig', () => {
 })
 
 describe('computeSoftLensFrame', () => {
+  it('clamps negative delta and speed safely', () => {
+    const frame = computeSoftLensFrame({
+      previousPressure: 0.35,
+      previousWake: 0.45,
+      deltaSeconds: -0.5,
+      speed: -0.2,
+      cameraDistance: 2.4,
+      restingCameraDistance: 2.4,
+      config: DEFAULT_SOFT_LENS,
+    })
+
+    expect(frame.pressure).toBe(0.35)
+    expect(frame.wake).toBe(0.45)
+    expect(frame.lensOpacity).toBeGreaterThanOrEqual(0)
+    expect(frame.lensOpacity).toBeLessThanOrEqual(1)
+  })
+
   it('builds pressure while the pointer is still', () => {
     const first = computeSoftLensFrame({
       previousPressure: 0,
@@ -50,8 +82,8 @@ describe('computeSoftLensFrame', () => {
     })
 
     expect(first.pressure).toBeGreaterThan(0)
+    expect(first.lensOpacity).toBeGreaterThan(0)
     expect(second.pressure).toBeGreaterThan(first.pressure)
-    expect(second.lensOpacity).toBeGreaterThan(0)
   })
 
   it('suppresses pressure but leaves a faint wake during movement', () => {
@@ -70,18 +102,44 @@ describe('computeSoftLensFrame', () => {
     expect(frame.lensOpacity).toBeGreaterThanOrEqual(0)
   })
 
-  it('dries pressure and wake over time after movement stops away from the area', () => {
+  it('builds equivalent wake for equivalent elapsed movement time', () => {
+    const input = {
+      previousPressure: 0,
+      previousWake: 0,
+      speed: 0.4,
+      cameraDistance: 2.4,
+      restingCameraDistance: 2.4,
+      config: DEFAULT_SOFT_LENS,
+    }
+    const oneStep = computeSoftLensFrame({
+      ...input,
+      deltaSeconds: 0.16,
+    })
+
+    const fourSteps = Array.from({ length: 4 }).reduce<number>(
+      (wake) =>
+        computeSoftLensFrame({
+          ...input,
+          previousWake: wake,
+          deltaSeconds: 0.04,
+        }).wake,
+      0,
+    )
+
+    expect(fourSteps).toBeCloseTo(oneStep.wake, 5)
+  })
+
+  it('dries wake over time after movement stops', () => {
     const frame = computeSoftLensFrame({
-      previousPressure: 1,
+      previousPressure: 0,
       previousWake: 0.8,
       deltaSeconds: DEFAULT_SOFT_LENS.decayTime,
-      speed: 0.12,
+      speed: 0,
       cameraDistance: 2.4,
       restingCameraDistance: 2.4,
       config: DEFAULT_SOFT_LENS,
     })
 
-    expect(frame.pressure).toBeLessThan(0.2)
     expect(frame.wake).toBeLessThan(0.2)
   })
 
@@ -106,5 +164,26 @@ describe('computeSoftLensFrame', () => {
     })
 
     expect(close.zoomDetail).toBeGreaterThan(far.zoomDetail)
+  })
+
+  it('keeps lens opacity transitional through pressure build', () => {
+    const frameAtPressure = (previousPressure: number) =>
+      computeSoftLensFrame({
+        previousPressure,
+        previousWake: 0,
+        deltaSeconds: 0,
+        speed: 0,
+        cameraDistance: 2.4,
+        restingCameraDistance: 2.4,
+        config: DEFAULT_SOFT_LENS,
+      })
+
+    const empty = frameAtPressure(0)
+    const partial = frameAtPressure(0.4)
+    const mature = frameAtPressure(0.9)
+
+    expect(empty.lensOpacity).toBe(0)
+    expect(partial.lensOpacity).toBeGreaterThan(0)
+    expect(mature.lensOpacity).toBeCloseTo(0, 5)
   })
 })

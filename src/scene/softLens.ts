@@ -39,6 +39,7 @@ export const DEFAULT_SOFT_LENS: SoftLensConfig = {
 
 const STILL_SPEED = 0.015
 const MOVING_SPEED = 0.08
+const WAKE_BUILD_RATE = 1.125
 
 export function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value))
@@ -69,7 +70,9 @@ export function computeSoftLensFrame(input: SoftLensFrameInput): SoftLensFrame {
     input.previousPressure + buildRate * stillness - decayRate * movement * 1.35,
   )
   const wake = clamp01(
-    input.previousWake + movement * 0.18 - decayRate * (0.8 + stillness * 0.2),
+    input.previousWake +
+      movement * WAKE_BUILD_RATE * delta -
+      decayRate * (0.8 + stillness * 0.2),
   )
 
   const distanceRatio =
@@ -79,7 +82,7 @@ export function computeSoftLensFrame(input: SoftLensFrameInput): SoftLensFrame {
   return {
     pressure,
     wake,
-    lensOpacity: clamp01(pressure * input.config.strength),
+    lensOpacity: clamp01((0.75 - pressure) * pressure * 2.4),
     zoomDetail,
   }
 }
